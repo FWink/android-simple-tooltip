@@ -239,29 +239,48 @@ public class SimpleTooltip implements PopupWindow.OnDismissListener {
         final RectF anchorRect = SimpleTooltipUtils.calculeRectInWindow(mAnchorView);
         final PointF anchorCenter = new PointF(anchorRect.centerX(), anchorRect.centerY());
 
-        switch (mGravity) {
-            case Gravity.START:
-                location.x = anchorRect.left - mPopupWindow.getContentView().getWidth() - mMargin;
-                location.y = anchorCenter.y - mPopupWindow.getContentView().getHeight() / 2f;
+        int gravity = mGravity;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
+            gravity = Gravity.getAbsoluteGravity(mGravity, mAnchorView.getLayoutDirection());
+        }
+        else {
+            //ltr
+            if ((gravity & Gravity.START) == Gravity.START) {
+                gravity = (gravity & ~Gravity.RELATIVE_HORIZONTAL_GRAVITY_MASK) | Gravity.LEFT;
+            }
+            else if ((gravity & Gravity.END) == Gravity.END) {
+                gravity = (gravity & ~Gravity.RELATIVE_HORIZONTAL_GRAVITY_MASK) | Gravity.RIGHT;
+            }
+        }
+
+        switch (mGravity & Gravity.HORIZONTAL_GRAVITY_MASK) {
+            case Gravity.CENTER_HORIZONTAL:
+                location.x = anchorCenter.x - mPopupWindow.getContentView().getWidth() / 2f;
                 break;
-            case Gravity.END:
+            case Gravity.LEFT:
+                location.x = anchorRect.left - mPopupWindow.getContentView().getWidth() - mMargin;
+                break;
+            case Gravity.RIGHT:
                 location.x = anchorRect.right + mMargin;
+                break;
+        }
+
+        switch (mGravity & Gravity.VERTICAL_GRAVITY_MASK) {
+            case Gravity.CENTER_VERTICAL:
                 location.y = anchorCenter.y - mPopupWindow.getContentView().getHeight() / 2f;
                 break;
             case Gravity.TOP:
-                location.x = anchorCenter.x - mPopupWindow.getContentView().getWidth() / 2f;
                 location.y = anchorRect.top - mPopupWindow.getContentView().getHeight() - mMargin;
+                if ((mGravity & Gravity.HORIZONTAL_GRAVITY_MASK) != Gravity.CENTER_HORIZONTAL) {
+                    location.y += anchorRect.height() / 2 + mMargin + mArrowWidth / 2;
+                }
                 break;
             case Gravity.BOTTOM:
-                location.x = anchorCenter.x - mPopupWindow.getContentView().getWidth() / 2f;
                 location.y = anchorRect.bottom + mMargin;
+                if ((mGravity & Gravity.HORIZONTAL_GRAVITY_MASK) != Gravity.CENTER_HORIZONTAL) {
+                    location.y -= anchorRect.height() / 2 + mMargin + mArrowWidth / 2;
+                }
                 break;
-            case Gravity.CENTER:
-                location.x = anchorCenter.x - mPopupWindow.getContentView().getWidth() / 2f;
-                location.y = anchorCenter.y - mPopupWindow.getContentView().getHeight() / 2f;
-                break;
-            default:
-                throw new IllegalArgumentException("Gravity must have be CENTER, START, END, TOP or BOTTOM.");
         }
 
         return location;
@@ -487,7 +506,7 @@ public class SimpleTooltip implements PopupWindow.OnDismissListener {
 
     @TargetApi(Build.VERSION_CODES.HONEYCOMB)
     private void startAnimation() {
-        final String property = mGravity == Gravity.TOP || mGravity == Gravity.BOTTOM ? "translationY" : "translationX";
+        final String property = ((mGravity & Gravity.TOP) == Gravity.TOP) || ((mGravity & Gravity.BOTTOM) == Gravity.BOTTOM) ? "translationY" : "translationX";
 
         final ObjectAnimator anim1 = ObjectAnimator.ofFloat(mContentLayout, property, -mAnimationPadding, mAnimationPadding);
         anim1.setDuration(mAnimationDuration);
